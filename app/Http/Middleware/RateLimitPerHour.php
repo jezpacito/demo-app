@@ -18,11 +18,19 @@ class RateLimitPerHour
     public function handle(Request $request, Closure $next): Response
     {
         $user = Auth::user();
-        if (RateLimiter::tooManyAttempts($user->id, $perMinute = 5)) {
-            abort(404);
+
+        $executed = RateLimiter::attempt(
+            $user->id,
+            $user::RATELIMIT_ATTEMPT,
+            function () {
+            },
+            $user::RATELIMIT_DURATION_IN_SECONDS,
+        );
+
+        if (!$executed) {
+            abort(429, 'Too Many Requests',);
         }
 
-        RateLimiter::increment($user->id);
         return $next($request);
     }
 }

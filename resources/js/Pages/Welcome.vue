@@ -1,5 +1,9 @@
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
+import axios from "axios";
+import { Form, Field, ErrorMessage } from "vee-validate";
+import { ref } from "vue";
+import * as yup from "yup";
 
 defineProps({
     canLogin: {
@@ -18,12 +22,47 @@ defineProps({
     },
 });
 
-function handleImageError() {
-    document.getElementById("screenshot-container")?.classList.add("!hidden");
-    document.getElementById("docs-card")?.classList.add("!row-span-1");
-    document.getElementById("docs-card-content")?.classList.add("!flex-row");
-    document.getElementById("background")?.classList.add("!hidden");
-}
+const schema = yup.object().shape({
+    email: yup.string().email().optional(),
+    url: yup
+        .string()
+        .required()
+        .test("is-url-valid", "URL is not valid", (value) => isValidUrl(value)),
+});
+
+const isValidUrl = (url) => {
+    try {
+        new URL(url);
+    } catch (e) {
+        return false;
+    }
+    return true;
+};
+const url = ref("");
+const shortenedUrl = ref("");
+const hasEmail = ref("");
+const onSubmit = async (values, { resetForm }) => {
+    try {
+        const response = await axios.post("/api/shorten", values);
+        const res = response.data.data;
+        url.value = res.shortened_url;
+        shortenedUrl.value = response.data.data.shortened_url
+            .replace("http://", "")
+            .replace("api/", "");
+
+        if (res.email) {
+            hasEmail.value = res.email;
+        } else {
+            hasEmail.value = "";
+        }
+
+        resetForm();
+        console.log(res.shortened_url); // Handle response data as needed
+    } catch (error) {
+        console.error("Error:", error.response.data);
+        alert(error.response.data.message);
+    }
+};
 </script>
 
 <template>
@@ -71,59 +110,91 @@ function handleImageError() {
                 </header>
 
                 <main class="mt-6">
-                    <form>
+                    <div
+                        class="gap-4 rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800"
+                    >
                         <div
-                            class="gap-4 rounded-lg bg-white p-6 shadow-[0px_14px_34px_0px_rgba(0,0,0,0.08)] ring-1 ring-white/[0.05] lg:pb-10 dark:bg-zinc-900 dark:ring-zinc-800"
+                            v-if="url"
+                            class="px-4 py-3 text-blue-700 bg-blue-100 border-t border-b border-blue-500"
+                            role="alert"
                         >
-                            <div class="pt-3 sm:pt-5">
-                                <h2
-                                    class="text-xl font-semibold text-black dark:text-white"
-                                >
-                                    URL Shortener
-                                </h2>
+                            <p class="font-bold">Success!</p>
+                            <p class="text-sm" v-if="!hasEmail">
+                                <a :href="url">
+                                    <i>
+                                        Your shortened link is:
+                                        <u>{{ shortenedUrl }} </u></i
+                                    >
+                                </a>
+                            </p>
+                            <p class="text-sm" v-else>
+                                <a :href="url">
+                                    <i>
+                                        Your shortened link has been sent to
+                                        your email at
+                                        <u>{{ hasEmail }} </u></i
+                                    >
+                                </a>
+                            </p>
+                        </div>
+                        <div class="pt-3 sm:pt-5">
+                            <h2
+                                class="text-xl font-semibold text-black dark:text-white"
+                            >
+                                URL Shortener
+                            </h2>
 
-                                <div class="mt-4 text-sm/relaxed">
-                                    <div class="p-6 mb-2">
-                                        <form class="w-full max-w-sm">
-                                            <div
-                                                class="flex flex-wrap mb-6 -mx-3"
-                                            >
-                                                <div class="w-full px-3">
-                                                    <input
-                                                        class="block w-full px-4 py-3 mb-3 text-sm leading-tight text-gray-700 bg-gray-200 border border-gray-200 rounded appearance-none focus:outline-none focus:bg-white focus:border-gray-500"
-                                                        id="grid-password"
-                                                        type="text"
-                                                        placeholder="Email (Optional)"
-                                                    />
-                                                    <p
-                                                        class="text-xs italic text-gray-600"
-                                                    >
-                                                        error message here
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="flex items-center py-2 border-b border-red-500"
-                                            >
-                                                <input
-                                                    class="w-full px-2 py-1 mr-3 leading-tight text-gray-700 bg-transparent border-none appearance-none focus:outline-none"
+                            <div class="mt-4 text-sm/relaxed">
+                                <div class="p-6 mb-2">
+                                    <Form
+                                        @submit="onSubmit"
+                                        :validation-schema="schema"
+                                    >
+                                        <!-- Form fields -->
+                                        <div class="flex flex-wrap mb-6 -mx-3">
+                                            <div class="w-full px-3">
+                                                <Field
+                                                    class="block w-full px-4 py-3 mb-3 text-sm leading-tight text-gray-700 bg-gray-200 border border-gray-200 rounded appearance-none focus:outline-none focus:bg-white focus:border-gray-500"
+                                                    id="grid-password"
                                                     type="text"
-                                                    placeholder="URL"
-                                                    aria-label="URL Shortener "
+                                                    placeholder="Email (Optional)"
+                                                    name="email"
+                                                />
+
+                                                <ErrorMessage
+                                                    class="text-xs italic text-white-50"
+                                                    name="email"
                                                 />
                                             </div>
-                                            <button
-                                                class="px-2 py-1 mt-3 text-sm text-white bg-red-500 border-4 border-red-500 rounded hover:bg-red-700 hover:border-red-700"
-                                                type="button"
-                                            >
-                                                Shorten
-                                            </button>
-                                        </form>
-                                    </div>
+                                        </div>
+                                        <div
+                                            class="flex items-center py-2 border-b border-red-500"
+                                        >
+                                            <Field
+                                                class="w-full px-2 py-1 mr-3 leading-tight bg-transparent border-none appearance-none text-white-50 focus:outline-none"
+                                                type="text"
+                                                name="url"
+                                                placeholder="URL"
+                                                aria-label="URL Shortener"
+                                            />
+                                        </div>
+                                        <div>
+                                            <ErrorMessage
+                                                class="mt-5 text-xs italic text-white-50"
+                                                name="url"
+                                            />
+                                        </div>
+                                        <button
+                                            class="px-2 py-1 mt-3 text-sm text-white bg-red-500 border-4 border-red-500 rounded hover:bg-red-700 hover:border-red-700"
+                                            type="submit"
+                                        >
+                                            Shorten
+                                        </button>
+                                    </Form>
                                 </div>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </main>
 
                 <footer

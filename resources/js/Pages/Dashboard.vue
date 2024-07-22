@@ -4,6 +4,7 @@ import { Head } from "@inertiajs/vue3";
 
 const props = defineProps({
     count: Number,
+    availableIn: String,
 });
 </script>
 
@@ -27,7 +28,12 @@ const props = defineProps({
                         </p>
 
                         <p>
-                            <i>Attempts left: {{ count }}</i>
+                            <i
+                                >After <b v-if="count < 0">last attempts</b>
+                                <b v-else>{{ count }} attempts</b>, you can only
+                                retry after
+                                {{ availableIn }}
+                            </i>
                         </p>
                     </div>
                 </div>
